@@ -297,7 +297,7 @@ class Generator(object):
     def generate(self, k, score_low, score_high):
         pass
 
-    def generate_many(self, k, scores):
+    def generate_many(self, k, scores, job_count):
         from joblib import Parallel, delayed
 
         def fn(i, score_pair):
@@ -312,7 +312,7 @@ class Generator(object):
             idxs = jnp.argsort(dists)
             return q, rc, lid, exp, idxs[:k], dists[idxs[:k]]
 
-        res = Parallel(backend="threading", n_jobs=-1)(
+        res = Parallel(backend="threading", n_jobs=job_count)(
             delayed(fn)(i, score_pair) for i, score_pair in enumerate(scores)
         )
         queries, rcs, lids, exps, idxs, dists = zip(*res)
@@ -534,6 +534,7 @@ def main():
     parser = argparse.ArgumentParser("hephaestus")
     parser.add_argument("-d", "--dataset", type=pathlib.Path, required=True)
     parser.add_argument("-k", type=int, required=True)
+    parser.add_argument("--jobs", type=int, default=5)
     parser.add_argument(
         "--distance", type=str, choices=["euclidean", "angular"], required=False
     )
@@ -627,7 +628,7 @@ def main():
 
     generator.fit(data)
 
-    queries = generator.generate_many(k, scores)
+    queries = generator.generate_many(k, scores, args.jobs)
 
     with h5py.File(output, "w") as hfp:
         metadata = vars(args)
